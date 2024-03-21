@@ -1,5 +1,5 @@
 import gradio as gr
-from utils.bedrock import call_bedrock
+from utils.bedrock import explain_code
 from utils.compare_vdb import compare_code_based_on_description
 
 
@@ -12,7 +12,7 @@ theme = gr.themes.Default(primary_hue="blue").set(
 )
 
 # gradio app to load the vector store
-app1 = gr.Interface(fn=call_bedrock,
+app1 = gr.Interface(fn=explain_code,
                     inputs=gr.Textbox(label="Insert the code segment for analysis"),
                     outputs=gr.Textbox(label="Code segment description", value=''))
 
@@ -27,7 +27,7 @@ app2 = gr.Interface(fn=compare_code_based_on_description,
 
 with gr.Blocks(theme=theme) as demo:
     gr.TabbedInterface([app1, app2],
-                       ["Code Exploration", "Compare code"],
+                       ["Explore Code", "Compare Code"],
                        css="")
     if __name__ == "__main__":
         demo.launch()

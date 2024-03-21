@@ -1,3 +1,4 @@
+# from utils.prompts import CODE_COMPARAISON,CODE_EXPLANATION
 from utils.prompts import CODE_COMPARAISON,CODE_EXPLANATION
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
@@ -7,11 +8,13 @@ import os
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_community.embeddings import BedrockEmbeddings
 from langchain.llms.bedrock import Bedrock
+from langchain_community.chat_models import BedrockChat
 
 from langchain.chains import LLMChain
 
 
-region = "eu-central-1"
+region_llm = "us-east-1"
+region_opensearch = "eu-central-1"
 service = "aoss"
 billi_host = "a4pkevhrjfw0pasvcu18.eu-central-1.aoss.amazonaws.com"
 fam_host = "ezfuwmpse0avly7gwq9h.eu-central-1.aoss.amazonaws.com"
@@ -21,12 +24,15 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 
 awsauth = AWS4Auth(AWS_ACCESS_KEY_ID,
                    AWS_SECRET_ACCESS_KEY,
-                   region,
+                   region_opensearch,
                    service)
 
 
-bedrock = boto3.client(service_name='bedrock-runtime', region_name=region)
-bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1", client=bedrock, region_name=region)
+bedrock = boto3.client(service_name='bedrock-runtime',
+                       region_name=region_llm)
+bedrock_embeddings = BedrockEmbeddings(model_id="amazon.titan-embed-text-v1",
+                                       client=bedrock,
+                                       region_name=region_llm)
 
 
 billi_vector = OpenSearchVectorSearch(
@@ -53,9 +59,41 @@ fam_vector = OpenSearchVectorSearch(
 )
 
 
+def compare_codes(fam_data, billi_data, claude_version):
+
+    ### creating the LLM
+
+    if claude_version == 2:
+        llm = Bedrock(model_id="anthropic.claude-v2",
+                      client=bedrock,
+                      model_kwargs={'max_tokens_to_sample':500})
+    elif claude_version == 3:
+        llm = BedrockChat(model_id="anthropic.claude-3-haiku-20240307-v1:0",
+                          client=bedrock,
+                          model_kwargs={'max_tokens': 500})
+    else:
+        exit("Invalid Claude Version. Select between 2 and 3.")
+
+    chain = LLMChain(llm=llm,
+                     prompt=CODE_EXPLANATION)
+    fam_description = chain.run({'context': fam_data})
+
+    chain = LLMChain(llm=llm,
+                     prompt=CODE_EXPLANATION)
+    billi_description = chain.run({'context': billi_data})
+
+    chain = LLMChain(llm=llm,
+                     prompt=CODE_COMPARAISON)
+    code_comparaion = chain.run({'billi_code': billi_data, 'fam_code': fam_data})
+
+
+    return fam_description, billi_description, code_comparaion
+
+
+
+
 
 def compare_code_based_on_description(description):
-  
 
     embedding_vector = bedrock_embeddings.embed_query(description)
 
@@ -84,30 +122,23 @@ def compare_code_based_on_description(description):
     for doc in docs_dict:
         billi_data += doc['page_content'] + "\n\n"
 
-    ### creating the LLM
+    claude_version = 3
 
-    llm = Bedrock(model_id="anthropic.claude-v2", client=bedrock, model_kwargs={'max_tokens_to_sample':200})
+    fam_description, billi_description, code_comparaion = compare_codes(fam_data,
+                                                                        billi_data,
+                                                                        claude_version=claude_version)
 
-
-
-    chain = LLMChain(llm=llm, prompt=CODE_EXPLANATION)
-    fam_description = chain.run({'context': fam_data})
-
-    chain = LLMChain(llm=llm, prompt=CODE_EXPLANATION)
-    billi_description = chain.run({'context': billi_data})
-
-    chain = LLMChain(llm=llm, prompt=CODE_COMPARAISON)
-    code_comparaion = chain.run({'billi_code': billi_data, 'fam_code': fam_data})
-
-
-
+    print("\n\n---- FAM code description:\n")
     print(fam_description)
 
+    print("\n\n---- BILLI code description:\n")
     print(billi_description)
 
+    print("\n\n---- Code comparison:\n")
     print(code_comparaion)
 
+    print(f"\n\n---- Claude version used: {claude_version}\n")
+    
     return fam_description, billi_description, code_comparaion
 
-
-# compare_code_based_on_description("Bonus malus")
+# compare_code_based_on_description("bonus malus")

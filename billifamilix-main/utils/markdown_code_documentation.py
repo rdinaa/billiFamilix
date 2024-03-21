@@ -1,5 +1,6 @@
-from utils.bedrock import ask_llm
-
+# from utils.bedrock import ask_llm
+from bedrock import ask_llm
+import os
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -33,13 +34,13 @@ def generate_documentation(
     for document in docs:
 
         document_path = document.metadata['source']
-        document_name = document_path.split("/")[-1]
+        document_name = os.path.basename(document_path)
         class_name = document_name.split(".")[0]
 
         file_path = output_folder + class_name + ".md"
         
             
-        if (document.metadata['content_type'] == 'simplified_code'):
+        if (('content_type' in document.metadata.keys()) and (document.metadata['content_type'] == 'simplified_code')):
             # print(document.page_content)
             content = document.page_content
 
@@ -56,32 +57,32 @@ def generate_documentation(
             result = "\n".join(["[[" + lib + "]]" for lib in libraries])
             
 
-        if (document.metadata['content_type'] == 'functions_classes'):
+        # if (document.metadata['content_type'] == 'functions_classes'):
 
-            print("generating doc for: ", document_name)
+        #     print("generating doc for: ", document_name)
 
-            content = document.page_content
+        #     content = document.page_content
 
 
-            reponse = ask_llm(
-                instruction=BASIC_PROMPT,
-                data=content
-                )
-            result = reponse + "\n\n"
+        #     reponse = ask_llm(
+        #         instruction=BASIC_PROMPT,
+        #         data=content
+        #         )
+        #     result = reponse + "\n\n"
 
             # print(reponse)
 
-        f = open(file_path,"a")
-        f.write(result)
-        f.close()
+            f = open(file_path,"a")
+            f.write(result)
+            f.close()
 
 
 # generate_documentation(
 #     root_folder="/Users/maximegillot/Desktop/Hackathon/Cleaned_FAM",
-#     output_folder="/Users/maximegillot/Desktop/LogSeq Data/pages"
+#     output_folder="/Users/maximegillot/Desktop/LogSeq Data/pages/"
 # )
         
 # generate_documentation(
-#     root_folder="/Users/maximegillot/Desktop/Hackathon/Cleaned_BILLI",
-#     output_folder="/Users/maximegillot/Desktop/LogSeq Data/pages"
+#     root_folder="/Users/maximegillot/Desktop/Hackathon/BILLI - invoiceCalculation/bc/src/main/java/com/coface/corp/invoiceCalculation",
+#     output_folder="/Users/maximegillot/Desktop/LogSeq Data/pages/"
 # )
